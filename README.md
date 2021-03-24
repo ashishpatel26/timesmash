@@ -1,8 +1,8 @@
 <img src="http://zed.uchicago.edu/logo/logozed1.png" alt="logo" width="500" />
 
-# Data Smashing
+# Time Smash
 
-Quantifier of universal similarity amongst arbitrary data streams without a priori knowledge, features, or training.
+Universal similarity amongst arbitrary data streams without a priori knowledge, features, or training.
 
 Can be used to solve time series clustering and classification problems.
 
@@ -121,3 +121,6 @@ For questions or suggestions contact:zed@uchicago.edu
 	features_test = alg.transform([d1_test,d2_test])
 	    
 	print(clf.predict(features_test))
+
+
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/zeroknowledgediscovery/timesmash/HEAD)
