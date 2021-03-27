@@ -149,7 +149,6 @@ For questions or suggestions contact:zed@uchicago.edu
     )
     clusters = alg.labels_
     print(clusters)
-	    
-	print(clf.predict(features_test))
+
 	
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/zeroknowledgediscovery/timesmash/HEAD)
