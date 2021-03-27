@@ -4,7 +4,7 @@ import sys
 from sklearn.ensemble import RandomForestClassifier
 
 sys.path.append("../")
-sys.path.append("./timesmash")
+sys.path.append("./")
 from timesmash import *
 from sklearn.cluster import KMeans
 from sklearn.metrics import accuracy_score
