@@ -49,7 +49,7 @@ class Quantizer(object):
         max_alphabet_size=3,
         detrending=None,
         normalization=None,
-        n_quantizations="max",
+        n_quantizations=1,
         return_failed=True,
         prune=False,
         verbose=False,
@@ -530,3 +530,6 @@ class Quantizer(object):
         if key not in self._feature_order:
             self._feature_order.append(key)
         self._fitted = True
+
+    def IsFitted(self):
+        return  self._fitted

@@ -41,7 +41,7 @@ setup(name='timesmash',
       },
 
       # metadata for PyPI upload
-      url='https://github.com/zeroknowledgediscovery/data_smashing_/blob/master/timesmash',
+      url='https://github.com/zeroknowledgediscovery/timesmash',
 
       maintainer_email='virotaru@uchicago.edu',
       maintainer='Victor Rotaru',

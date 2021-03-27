@@ -584,56 +584,21 @@ def _llk_state(data, model, *, clean=True, data_file=None):
 from contextlib import contextmanager
 
 
-def fileno(file_or_fd):
-    fd = getattr(file_or_fd, "fileno", lambda: file_or_fd)()
-    if not isinstance(fd, int):
-        raise ValueError("Expected a file (`.fileno()`) or a file descriptor")
-    return fd
-
-
-def merged_stderr_stdout():  # $ exec 2>&1
-    return stdout_redirected(to=sys.stdout, stdout=sys.stderr)
-
-
-@contextmanager
-def stdout_redirected(to=os.devnull, stdout=None):
-    if stdout is None:
-        stdout = sys.stdout
-
-    stdout_fd = fileno(stdout)
-    # copy stdout_fd before it is overwritten
-    # NOTE: `copied` is inheritable on Windows when duplicating a standard stream
-    with os.fdopen(os.dup(stdout_fd), "wb") as copied:
-        stdout.flush()  # flush library buffers that dup2 knows nothing about
-        try:
-            os.dup2(fileno(to), stdout_fd)  # $ exec >&to
-        except ValueError:  # filename
-            with open(to, "wb") as to_file:
-                os.dup2(to_file.fileno(), stdout_fd)  # $ exec > to
-        try:
-            yield stdout  # allow code to be run with the redirected stdout
-        finally:
-            # restore stdout to its previous value
-            # NOTE: dup2 makes stdout_fd inheritable unconditionally
-            stdout.flush()
-            os.dup2(copied.fileno(), stdout_fd)  # $ exec >&copied
-
-
 def _llk(data, model, *, clean=True, data_file=None):
     data_file = RANDOM_NAME(clean) if data_file is None else data_file
     data.to_csv(data_file, sep=" ", index=False, header=False)
     llk_binary = os.path.abspath(os.path.join(BIN_PATH, "llk"))
     llpos = llk_binary + " -s " + data_file + " -f " + model
-    if True:
-        try:
-            df_toreturn = pd.DataFrame(
-                sp.check_output(llpos, shell=True).split()
-            ).astype(float)
 
-        except sp.CalledProcessError as e:
-            if clean:
-                os_remove(data_file)
-            raise Binary_crashed()
+    try:
+        df_toreturn = pd.DataFrame(
+            sp.check_output(llpos, shell=True, stderr=sp.DEVNULL).split()
+        ).astype(float)
+
+    except sp.CalledProcessError as e:
+        if clean:
+            os_remove(data_file)
+        raise Binary_crashed()
     if clean:
         os_remove(data_file)
 

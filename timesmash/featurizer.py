@@ -2,10 +2,28 @@ import os
 from timesmash.quantizer import Quantizer
 from timesmash.utils import xgenesess, genesess, Binary_crashed, process_train_labels
 import pandas as pd
-from abc import ABC, abstractmethod
+from abc import abstractmethod
+import warnings
+import numpy as np
 
+class Get_Fit_Transform():
 
-class _Featurizer(ABC):
+    def fit_transform(self, *, train, test, label=None):
+        self.fit(train, label)
+
+        train_features = self.transform(train, warn=False)
+        test_features = self.transform(test, warn=False)
+        train_features = train_features.replace([np.inf, -np.inf], np.nan).dropna(
+            axis=1
+        )
+        test_features = test_features.replace([np.inf, -np.inf], np.nan).dropna(axis=1)
+        common_cols = [
+            col
+            for col in set(train_features.columns).intersection(test_features.columns)
+        ]
+        return train_features[common_cols], test_features[common_cols]
+
+class _Featurizer(Get_Fit_Transform):
 
     """
     _Featurizer abstract class is used to implement XG1 and XG2. 
@@ -17,12 +35,14 @@ class _Featurizer(ABC):
     """
 
     def __init__(self, *, clean=True, quantizer=None, **kwargs):
-        self._fitted = False
+
+        self._fitted = quantizer is not None
         self.train_feature = []
         self.clean = clean
         self._qtz = Quantizer(clean=clean,return_failed=False, **kwargs) if quantizer is None else quantizer
+        assert quantizer is None or quantizer.IsFitted(), "Initialize with fitted quantizer"
 
-    def fit(self, X, y=None):
+    def fit(self, train, label=None):
 
         """
         @author zed.uchicago.edu
@@ -34,9 +54,21 @@ class _Featurizer(ABC):
         Outputs:
             pd.Dataframe of time series features 
         """
+        train, label = process_train_labels(train, label)
+        if not self._fitted:
+            self.train_quatized = self._qtz.fit(train, label=label)
+            self._fitted = True
+        else:
+            warnings.warn("Nothing done in fit. Already fitted or initialized with quantizer")
 
-        self.train_quatized = self._qtz.fit_transform(X, label=y)
-        for index, df in enumerate(self.train_quatized):
+        return self
+
+    def transform(self, X, warn=True):
+        X = pd.DataFrame(X)
+        train_quatized = self._qtz.transform(X)
+        crash = False
+        features = []
+        for index, df in enumerate(train_quatized):
             # check that binary didn't fail
             try:
                 feature = self._get_feature(df, clean=self.clean)
@@ -44,63 +76,18 @@ class _Featurizer(ABC):
                     str(index) + "_" + str(x) for x in range(len(feature.columns))
                 ]
             except Binary_crashed as e:
+                crash = True
                 feature = None
                 continue
             except Exception as e:
                 raise e
-            self.train_feature.append(feature)
-        self._fitted = True
-        return pd.concat(self.train_feature, axis=1)
+            features.append(feature)
 
-    def _predict(self, X):
+        final = pd.concat(features, axis=1)
 
-        """
-        @author zed.uchicago.edu
-        Private method that quantizes and featurizes test data and removes qunatization from 
-                        test data if it failed in test. 
-        Inputs:
-            X (pandas.DataFrame): test data
-        Outputs:
-            two pd.Dataframe of time series features for test and train
-        """
-
-        assert self._fitted, "Object not fitted!"
-        qtz_test = self._qtz.transform(X)
-        feature_test = []
-        train_match = self.train_feature.copy()
-        train_index = None
-        test_index = None
-        for i, data in enumerate(qtz_test):
-            if train_match[i] is None:
-                feature_test.append(None)
-                continue
-            try:
-                feature = self._get_feature(data, clean=self.clean)
-                feature.columns = [
-                    str(i) + "_" + str(x) for x in range(len(feature.columns))
-                ]
-            except Binary_crashed as e:
-                train_match[i] = None
-                continue
-            except Exception as e:
-                raise e
-            feature_test.append(feature)
-            train_index = train_match[i].index
-            test_index = feature.index
-        train_features = pd.concat(train_match, axis=1, ignore_index=False)
-        test_features = pd.concat(feature_test, axis=1, ignore_index=False)
-        common_cols = [
-            col
-            for col in set(train_features.columns).intersection(test_features.columns)
-        ]
-        return train_features[common_cols], test_features[common_cols]
-
-    def fit_transform(self, *, train=None, test, label=None):
-        test = pd.DataFrame(test)
-        train, label = process_train_labels(train, label)
-        if not self._fitted:
-            self.fit(train, label)
-        return self._predict(test)
+        if (final.isnull().values.any() or crash) and warn:
+            warnings.warn("Quantization issues detected. Try using fit_transform to avoid NaN")
+        return final
 
     @abstractmethod
     def _get_feature(self, dataframe):
@@ -133,3 +120,4 @@ class SymbolicDerivative(_Featurizer):
             gen_epsilon=self._eps,
             **kwargs
         )
+

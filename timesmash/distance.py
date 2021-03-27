@@ -8,12 +8,11 @@ import sklearn.cluster
 
 
 class _Distance(ABC):
-    def __init__(self, n_quantizations=1, *, quantizer=None, clean=True, **kwargs):
+    def __init__(self, *, quantizer=None, clean=True, **kwargs):
         self.data = None
-        self.n_quantizations = n_quantizations
         self.train_quatized = None
         self._clean = clean
-        self._qtz = Quantizer(n_quantizations = n_quantizations, clean=self._clean, **kwargs) if quantizer is None else quantizer
+        self._qtz = Quantizer(clean=self._clean, **kwargs) if quantizer is None else quantizer
 
     def fit(self, train, *, label=None):
         train, label = process_train_labels(train, label)

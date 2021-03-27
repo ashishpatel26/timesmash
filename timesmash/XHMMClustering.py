@@ -1,11 +1,6 @@
 import pandas as pd
-import pickle
-import sys
 import numpy as np
 from timesmash import Quantizer, XHMMFeatures, InferredHMMLikelihood
-from sklearn.cluster import KMeans
-import pickle
-import os
 from sklearn.cluster import KMeans
 
 def is_equal_set_of_sets(ss1,ss2):
@@ -38,39 +33,38 @@ class XHMMClustering:
         self.kwargs = kwargs  
         self.labels_ = None
         self.alg = None
-        self.features_train_ = None
-        self._done = False
+        self.done = False
         self._llklike = llklike
         self._llkalg = None
         self._n_quantizations = n_quantizations
+        self.features = None
+
     
-    def fit(self, data, labels = None, next_iter=False):
-        if next_iter:
-            labels = self.labels_
-        elif labels == None:
+    def fit(self, data, labels = None):
+        if labels == None:
             self.labels_ = pd.DataFrame(np.random.randint(self.initial_n_clusters, size=(data[0].shape[0],1)), index = data[0].index)
         else:
             self.labels_ =  labels   
         for i in range(self.max_iter):
-            if self._done:
-                continue
-            alg = XHMMFeatures( n_quantizations=self._n_quantizations,**self.kwargs)
-            alg.fit(data, self.labels_)
-            self.alg = alg   
-            features_train = alg.transform(data).dropna(axis=1)
+            self.alg = XHMMFeatures( n_quantizations=self._n_quantizations,**self.kwargs)
+            self.alg.fit(data, self.labels_)
             if self._llklike:
                 self._llkalg = XHMMFeatures(self_models=True, delay_min=1, delay_max=1, n_quantizations=self._n_quantizations)
-                self._llkalg.fit(data, self.labels_)
-                features_train_llk = self._llkalg.transform(data).dropna(axis=1)
-                features_train = pd.concat([features_train, features_train_llk], axis=1, join="outer")
-            kmeans = KMeans(n_clusters=self.n_clusters, random_state=0).fit(features_train)     
-            labels_ = pd.DataFrame(kmeans.labels_, index = features_train.index)
+                self._llkalg.fit(data, self.labels_)   
+            self.features = self.transform(data).dropna(axis=1)
+            kmeans = KMeans(n_clusters=self.n_clusters, random_state=0).fit(self.features)     
+            labels_ = pd.DataFrame(kmeans.labels_, index = self.features.index)
             if is_equal_labels(labels_, self.labels_):
-                self._done = True
+                self.done = True
                 break
             self.labels_ = labels_
         return self
 
     def transform(self, data):
+        features = self.alg.transform(data).dropna(axis=1)
+        if self._llklike:
+            features_llk = self._llkalg.transform(data)
+            features = pd.concat([features, features_llk], axis=1, join="outer")
 
-        return self.alg.transform(data)
+        return features
+

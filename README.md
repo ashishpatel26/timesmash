@@ -122,5 +122,34 @@ For questions or suggestions contact:zed@uchicago.edu
 	    
 	print(clf.predict(features_test))
 
+###	XHMMClustering for multichannel clustering:	
+    import pandas as pd
+    from timesmash import XHMMClustering
 
+    channel1 = pd.DataFrame(
+        [
+            [0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
+            [1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+            [1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+            [0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
+        ],
+        index=["person_1", "person_2", "person_3", "person_4"],
+    )
+    channel2 = pd.DataFrame(
+        [
+            [1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+            [1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
+            [0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
+            [0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
+        ],
+        index=["person_1", "person_2", "person_3", "person_4"],
+    )
+    alg = XHMMClustering(n_quantizations=1).fit(
+        [channel1, channel2]
+    )
+    clusters = alg.labels_
+    print(clusters)
+	    
+	print(clf.predict(features_test))
+	
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/zeroknowledgediscovery/timesmash/HEAD)

@@ -1,4 +1,3 @@
-from timesmash.featurizer import _Featurizer
 from timesmash.quantizer import Quantizer
 from timesmash.utils import (
     _gen_model,
@@ -7,16 +6,14 @@ from timesmash.utils import (
     Binary_crashed,
     process_train_labels,
 )
+from timesmash.featurizer import Get_Fit_Transform
 import pandas as pd
-import numpy as np
-import os
 from collections import defaultdict
-from abc import ABC, abstractmethod
+import warnings
 
 
-class InferredHMMLikelihood(ABC):
+class InferredHMMLikelihood(Get_Fit_Transform):
     def __init__(self, *, quantizer=None, epsilon=0.25, clean=True, **kwargs):
-        self.train_quatized = None
         self._fitted = False
         self.train_feature = []
         self._llk_function = _llk
@@ -24,63 +21,43 @@ class InferredHMMLikelihood(ABC):
         self._clean = clean
         self.all_models_file = defaultdict(lambda: dict())
         self._qtz = Quantizer(clean=self._clean, **kwargs) if quantizer is None else quantizer
+        assert quantizer is None or quantizer.IsFitted(), "Initialize with fitted quantizer"
 
-    def _fit(self, X, y):
-        self.train_quatized = self._qtz.fit_transform(X, label=y)
-        self.__fit_featurizer(X, y)
-        train_quatized = self._qtz.transform(X)
-        for i, data in enumerate(train_quatized):
-            feature = self.get_feature(data, i)
-            self.train_feature.append(feature)
-        self._fitted = True
+
+    def fit(self, train, label):
+        train, label = process_train_labels(train, label)
+        if not self._qtz.IsFitted():
+            self._qtz.fit(train, label=label)
+        self.__fit_featurizer(train, label)
         return self
 
-    def _transform(self, X):
+    def transform(self, X, warn=True):
+        X = pd.DataFrame(X)
         qtz_test = self._qtz.transform(X)
         feature_train = []
-        train_match = self.train_feature.copy()
         for i, data in enumerate(qtz_test):
-            feature = self.get_feature(data, i)
+            feature = self._get_feature(data, i, warn = warn)
             feature_train.append(feature)
-        return pd.concat(train_match, axis=1), pd.concat(feature_train, axis=1)
+        return pd.concat(feature_train, axis=1)
 
-    def fit_transform(self, *, train, test, label):
-        assert train is not None or self._fitted, "Train cannot be None."
-        train, label = process_train_labels(train, label)
-        test = pd.DataFrame(test)
-        if train is not None:
-            self._fit(train, label)
-        train_features, test_features = self._transform(test)
-        train_features = train_features.replace([np.inf, -np.inf], np.nan).dropna(
-            axis=1
-        )
-        test_features = test_features.replace([np.inf, -np.inf], np.nan).dropna(axis=1)
-        common_cols = [
-            col
-            for col in set(train_features.columns).intersection(test_features.columns)
-        ]
-        assert (
-            len(common_cols) != 0
-        ), "No features were found, try different hyperparameters."
-        train_features = train_features[common_cols].copy()
-        test_features = test_features[common_cols].copy()
-        train_features.index = train.index
-        test_features.index = test.index
-        return train_features, test_features
-
-    def get_feature(self, dataframe, q):
+    def _get_feature(self, dataframe, q, warn):
         feature_list = []
+        crash = False
         for label, models in self.all_models_file[q].items():
             try:
                 feature = self._llk_function(dataframe, models, clean=self._clean)
                 feature.columns = [models + str(x) for x in range(len(feature.columns))]
             except Binary_crashed as bin_error:
+                crash = True
                 continue
             except Exception as e:
                 raise e
             else:
                 feature_list.append(feature)
+
         final_df = pd.concat(feature_list, axis=1)
+        if (final_df.isnull().values.any() or crash) and warn:
+            warnings.warn("Quantization issues detected. Try using fit_transform to avoid NaN")
         return final_df
 
     def __fit_featurizer(self, X, y):
