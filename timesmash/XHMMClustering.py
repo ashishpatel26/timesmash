@@ -26,7 +26,7 @@ def is_equal_labels(l1,l2):
     return is_equal_set_of_sets(ss1,ss2)
 
 class XHMMClustering:
-    def __init__(self, initial_n_clusters = 2, n_clusters = 2, max_iter=3, llklike=False, n_quantizations=10,**kwargs):
+    def __init__(self, initial_n_clusters = 2, n_clusters = 2, max_iter=3, llklike=False, **kwargs):
         self.n_clusters = n_clusters
         self.initial_n_clusters = initial_n_clusters
         self.max_iter = max_iter
@@ -36,8 +36,11 @@ class XHMMClustering:
         self.done = False
         self._llklike = llklike
         self._llkalg = None
-        self._n_quantizations = n_quantizations
         self.features = None
+        self.kwargs_llk = kwargs.copy()
+        self.kwargs_llk['self_models'] = True
+        self.kwargs_llk['delay_min'] = 1
+        self.kwargs_llk['delay_max'] = 1
 
     
     def fit(self, data, labels = None):
@@ -46,10 +49,10 @@ class XHMMClustering:
         else:
             self.labels_ =  labels   
         for i in range(self.max_iter):
-            self.alg = XHMMFeatures( n_quantizations=self._n_quantizations,**self.kwargs)
+            self.alg = XHMMFeatures(**self.kwargs)
             self.alg.fit(data, self.labels_)
             if self._llklike:
-                self._llkalg = XHMMFeatures(self_models=True, delay_min=1, delay_max=1, n_quantizations=self._n_quantizations)
+                self._llkalg = XHMMFeatures(**self.kwargs_llk)
                 self._llkalg.fit(data, self.labels_)   
             self.features = self.transform(data).dropna(axis=1)
             kmeans = KMeans(n_clusters=self.n_clusters, random_state=0).fit(self.features)     
