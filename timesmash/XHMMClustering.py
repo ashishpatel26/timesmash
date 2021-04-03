@@ -41,7 +41,7 @@ class XHMMClustering:
 
     
     def fit(self, data, labels = None):
-        if labels == None:
+        if labels is None:
             self.labels_ = pd.DataFrame(np.random.randint(self.initial_n_clusters, size=(data[0].shape[0],1)), index = data[0].index)
         else:
             self.labels_ =  labels   
