@@ -123,6 +123,7 @@ def get_auc(args):
     data = args[0][0].dropna(axis=1)
     person = args[0][1]
     models = args[1]
+    kwargs = args[2]
     folder_name = RANDOM_NAME()
     os.mkdir(folder_name)
     for ts in data.index:
@@ -131,7 +132,7 @@ def get_auc(args):
     res = []
     for ts in data.index:
         stored_model = models[ts]
-        auc, _, _ = _simulateModel(MODEL_PATH = stored_model, DATA_PATH = folder_name+'/', RUNLEN = data.shape[1]).run()
+        auc, _, _ = _simulateModel(MODEL_PATH = stored_model, DATA_PATH = folder_name+'/', RUNLEN = data.shape[1], **kwargs).run()
         res.append(auc)
     shutil.rmtree(folder_name)
     df = pd.DataFrame(res).T
@@ -181,7 +182,7 @@ class _AUC_Feature:
 
         it = _list_of_dataframe_iter(data)
         with callwithValidKwargs(self.pool,self._all_kwargs) as executor:
-            args = product(it, [self._model_manager[name]._models for name in self._model_manager])
+            args = product(it, [self._model_manager[name]._models for name in self._model_manager],[self._all_kwargs])
             res = executor.map(get_auc, args)
         features = pd.concat(res, sort=False, axis = 0, join = 'outer' )
         return features.reset_index().groupby('index').max()
@@ -329,7 +330,8 @@ class _simulateModel:
                  READLEN=None,
                  DERIVATIVE=0,
                  CAP_P = False,
-                 use_flex_roc = False):
+                 use_flex_roc = False,
+                 **kwargs):
         assert os.path.exists(CYNET_PATH), "cynet binary cannot be found."
         assert os.path.exists(FLEXROC_PATH), "roc binary cannot be found."
         assert os.path.exists(MODEL_PATH), "model file cannot be found: " + MODEL_PATH

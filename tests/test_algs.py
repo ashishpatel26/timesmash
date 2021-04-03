@@ -14,6 +14,31 @@ test_path = "./notebooks/Trace/Trace_TEST.tsv"
 
 
 class Timesmashtest(unittest.TestCase):
+    
+    def test_XHMMFeatures(self):
+
+        d1_train = pd.DataFrame(
+            [[0, 1, 0, 1, 0, 1, 0, 1, 0, 1], [1, 0, 1, 0, 1, 0, 1, 0, 1, 0]],
+            index=["person_1", "person_2"],
+        )
+        d2_train = pd.DataFrame(
+            [[1, 0, 1, 0, 1, 0, 1, 0, 1, 0], [1, 0, 1, 0, 1, 0, 1, 0, 1, 0]],
+            index=["person_1", "person_2"],
+        )
+        labels = pd.DataFrame([0, 1], index=["person_1", "person_2"])
+
+        alg = XHMMFeatures(n_quantizations=1)
+        features_train = alg.fit_transform([d1_train, d2_train], labels)
+
+        clf = RandomForestClassifier()
+        clf.fit(features_train, labels)
+
+        d1_test = pd.DataFrame([[1, 0, 1, 0, 1, 0, 1, 0, 1]], index=["person_test"])
+        d2_test = pd.DataFrame([[0, 1, 0, 1, 0, 1, 0, 1, 0]], index=["person_test"])
+
+        features_test = alg.transform([d1_test, d2_test])
+        test_label = clf.predict(features_test)
+        self.assertTrue(test_label[0] == 0)
 
     def test_CInferredHMMLikelihood1(self):
         train = pd.read_csv(
@@ -113,31 +138,6 @@ class Timesmashtest(unittest.TestCase):
         clusters = KMeans(n_clusters=2).fit(dist).labels_
         self.assertTrue(clusters[0] == clusters[2])
         self.assertFalse(clusters[0] == clusters[1])
-
-    def test_XHMMFeatures(self):
-
-        d1_train = pd.DataFrame(
-            [[0, 1, 0, 1, 0, 1, 0, 1, 0, 1], [1, 0, 1, 0, 1, 0, 1, 0, 1, 0]],
-            index=["person_1", "person_2"],
-        )
-        d2_train = pd.DataFrame(
-            [[1, 0, 1, 0, 1, 0, 1, 0, 1, 0], [1, 0, 1, 0, 1, 0, 1, 0, 1, 0]],
-            index=["person_1", "person_2"],
-        )
-        labels = pd.DataFrame([0, 1], index=["person_1", "person_2"])
-
-        alg = XHMMFeatures(n_quantizations=1)
-        features_train = alg.fit_transform([d1_train, d2_train], labels)
-
-        clf = RandomForestClassifier()
-        clf.fit(features_train, labels)
-
-        d1_test = pd.DataFrame([[1, 0, 1, 0, 1, 0, 1, 0, 1]], index=["person_test"])
-        d2_test = pd.DataFrame([[0, 1, 0, 1, 0, 1, 0, 1, 0]], index=["person_test"])
-
-        features_test = alg.transform([d1_test, d2_test])
-        test_label = clf.predict(features_test)
-        self.assertTrue(test_label[0] == 0)
 
     def test_XHMMClustering(self):
 
