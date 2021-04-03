@@ -185,7 +185,9 @@ class _AUC_Feature:
             args = product(it, [self._model_manager[name]._models for name in self._model_manager],[self._all_kwargs])
             res = executor.map(get_auc, args)
         features = pd.concat(res, sort=False, axis = 0, join = 'outer' )
-        return features.reset_index().groupby('index').max()
+        features = features.reset_index().groupby('index').max()
+        features = features.sort_index(axis=1)
+        return features
     
     def fit_transform(self, data, labels):
         return self.fit(data, labels).transform(data)
